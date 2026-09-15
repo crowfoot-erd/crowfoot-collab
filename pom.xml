@@ -17,6 +17,13 @@
     <name>crowfoot-collab</name>
     <description>Crowfoot ERD Editor — 실시간 협업 서버 (WebSocket presence·변경 푸시)</description>
 
+    <licenses>
+        <license>
+            <name>Apache License, Version 2.0</name>
+            <url>https://www.apache.org/licenses/LICENSE-2.0</url>
+        </license>
+    </licenses>
+
     <properties>
         <java.version>21</java.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
