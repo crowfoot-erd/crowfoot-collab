@@ -16,17 +16,24 @@ public class PresenceService {
 
     private final CollabRooms rooms;
     private final SimpMessagingTemplate messaging;
+    private final ChatService chat;
 
-    public PresenceService(CollabRooms rooms, SimpMessagingTemplate messaging) {
+    public PresenceService(CollabRooms rooms, SimpMessagingTemplate messaging, ChatService chat) {
         this.rooms = rooms;
         this.messaging = messaging;
+        this.chat = chat;
     }
 
-    /** 문서 룸 가입 — 세션→룸 역인덱스까지 묶어 등록하고 입장을 알린다 */
+    /** 문서 룸 가입 — 세션→룸 역인덱스까지 묶어 등록하고 입장을 알린다.
+     *  채팅 기록이 있으면 최근 대화 창도 브로드캐스트한다(늦게 들어온 팀원의 대화 확인) —
+     *  join이 룸 멤버십 흐름의 소유자라 여기서 이어붙인다. */
     public void join(String modelId, String sessionId, CollabRooms.Participant me) {
         rooms.join(modelId, sessionId, me);
         rooms.bindSession(sessionId, modelId);
         broadcastPresence(modelId, "join", me);
+        if (chat.hasHistory(modelId)) {
+            chat.broadcastHistory(modelId);
+        }
     }
 
     /** 명시적 퇴장 — 해제된 참가자가 있을 때만 알린다(중복 leave는 조용히) */

@@ -18,8 +18,9 @@ import java.util.concurrent.ConcurrentHashMap;
 @Component
 public class CollabRooms {
 
-    /** 참가자 — 클라이언트가 CONNECT 헤더로 실어 올린 신원(로컬 개발. 운영은 게이트웨이 주입) */
-    public record Participant(String userId, String name) {
+    /** 참가자 — 클라이언트가 CONNECT 헤더로 실어 올린 신원(로컬 개발. 운영은 게이트웨이 주입).
+     *  avatarUrl은 선택(제공자 프로필 사진 — 없으면 null, 웹이 이니셜로 폴백). */
+    public record Participant(String userId, String name, String avatarUrl, String userLogin) {
     }
 
     private final Map<String, Map<String, Participant>> rooms = new ConcurrentHashMap<>();

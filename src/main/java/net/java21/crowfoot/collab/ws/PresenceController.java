@@ -43,9 +43,9 @@ public class PresenceController {
     private CollabRooms.Participant participant(SimpMessageHeaderAccessor accessor) {
         Principal user = accessor.getUser();
         if (user instanceof StompPrincipal principal) {
-            return new CollabRooms.Participant(principal.userId(), principal.displayName());
+            return principal.toParticipant();
         }
         // 인터셉터가 CONNECT를 거부하므로 여기에 도달할 수 없다 — 방어적 폴백
-        return new CollabRooms.Participant(user.getName(), user.getName());
+        return new CollabRooms.Participant(user.getName(), user.getName(), null, null);
     }
 }

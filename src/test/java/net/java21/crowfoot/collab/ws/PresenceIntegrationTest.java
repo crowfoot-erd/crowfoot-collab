@@ -1,5 +1,7 @@
 package net.java21.crowfoot.collab.ws;
 
+import net.java21.crowfoot.collab.ws.dto.ChatEvent;
+import net.java21.crowfoot.collab.ws.dto.ChatNotice;
 import net.java21.crowfoot.collab.ws.dto.ModelSavedEvent;
 import net.java21.crowfoot.collab.ws.dto.PresenceEvent;
 import net.java21.crowfoot.collab.ws.dto.SavedNotice;
@@ -189,10 +191,152 @@ class PresenceIntegrationTest {
         assertThatThrownBy(future::get).isInstanceOf(ExecutionException.class);
     }
 
+    @Test
+    @DisplayName("chat 발행이 룸 구독자 전체에 전파된다 — 발신자 에코 포함, 이름·아바타·핸들 실림")
+    void chatMessageIsBroadcastToRoomSubscribers() throws Exception {
+        StompSession alice = connect("alice", "앨리스", "https://avatars.githubusercontent.com/u/1?v=4", "octocat");
+        StompSession bob = connect("bob", "밥", null);
+        BlockingQueue<ChatEvent> aliceChat = subscribeTyped(alice, "/topic/models/c1/chat", ChatEvent.class);
+        BlockingQueue<ChatEvent> bobChat = subscribeTyped(bob, "/topic/models/c1/chat", ChatEvent.class);
+        Thread.sleep(300);
+
+        alice.send("/app/models/c1/chat", new ChatNotice("안녕하세요"));
+
+        ChatEvent toAlice = await(aliceChat); // 심플 브로커 — 자기 에코도 온다(클라이언트가 자기 발언을 그린다)
+        assertThat(toAlice.type()).isEqualTo("message");
+        assertThat(toAlice.userId()).isEqualTo("alice");
+        assertThat(toAlice.name()).isEqualTo("앨리스");
+        assertThat(toAlice.avatarUrl()).isEqualTo("https://avatars.githubusercontent.com/u/1?v=4");
+        assertThat(toAlice.userLogin()).isEqualTo("octocat");
+        assertThat(toAlice.message()).isEqualTo("안녕하세요");
+        assertThat(toAlice.at()).isNotNull();
+        assertThat(toAlice.messages()).isNull();
+
+        ChatEvent toBob = await(bobChat);
+        assertThat(toBob.userId()).isEqualTo("alice");
+        assertThat(toBob.message()).isEqualTo("안녕하세요");
+    }
+
+    @Test
+    @DisplayName("늦게 join한 참가자에게 최근 대화 history가 전달된다 — 오래된 순 목록 교체")
+    void chatHistoryReachesLateJoiner() throws Exception {
+        StompSession alice = connect("alice", "앨리스", null);
+        BlockingQueue<ChatEvent> aliceChat = subscribeTyped(alice, "/topic/models/c2/chat", ChatEvent.class);
+        Thread.sleep(300);
+        alice.send("/app/models/c2/join", "");
+        // 에코를 기다렸다 보낸다 — 무수면 연속 send는 인바운드 처리 순서가 뒤집힐 수 있고,
+        // 간격 sleep은 콜드 JVM 워밍업을 이기지 못한다. 에코 확정이 유일한 순서 동기화다
+        alice.send("/app/models/c2/chat", new ChatNotice("먼저 보낸 메시지"));
+        await(aliceChat);
+        alice.send("/app/models/c2/chat", new ChatNotice("나중에 보낸 메시지"));
+        await(aliceChat);
+
+        StompSession bob = connect("bob", "밥", null);
+        BlockingQueue<ChatEvent> bobChat = subscribeTyped(bob, "/topic/models/c2/chat", ChatEvent.class);
+        Thread.sleep(300);
+        bob.send("/app/models/c2/join", "");
+
+        ChatEvent history = await(bobChat);
+        assertThat(history.type()).isEqualTo("history");
+        assertThat(history.messages())
+                .extracting("message")
+                .containsExactly("먼저 보낸 메시지", "나중에 보낸 메시지"); // 오래된 순
+        assertThat(history.messages().get(0).name()).isEqualTo("앨리스");
+    }
+
+    @Test
+    @DisplayName("기록 없는 룸의 join은 채팅 이벤트를 보내지 않는다")
+    void joinWithoutChatHistoryEmitsNoChatEvent() throws Exception {
+        StompSession alice = connect("alice", "앨리스", null);
+        BlockingQueue<ChatEvent> chat = subscribeTyped(alice, "/topic/models/c3/chat", ChatEvent.class);
+        Thread.sleep(300);
+        alice.send("/app/models/c3/join", "");
+
+        assertThat(chat.poll(1, TimeUnit.SECONDS)).isNull();
+    }
+
+    @Test
+    @DisplayName("chat의 message가 blank거나 500자를 넘으면 무시된다 — 브로드캐스트 없음")
+    void chatRejectsBlankOrOverlongMessage() throws Exception {
+        StompSession alice = connect("alice", "앨리스", null);
+        BlockingQueue<ChatEvent> chat = subscribeTyped(alice, "/topic/models/c4/chat", ChatEvent.class);
+        Thread.sleep(300);
+
+        alice.send("/app/models/c4/chat", new ChatNotice("   "));
+        assertThat(chat.poll(1, TimeUnit.SECONDS)).isNull();
+
+        alice.send("/app/models/c4/chat", new ChatNotice("x".repeat(501)));
+        assertThat(chat.poll(1, TimeUnit.SECONDS)).isNull();
+    }
+
+    @Test
+    @DisplayName("presence 스냅샷 참가자에 아바타 URL·핸들이 실린다 — 헤더 없으면 null")
+    void presenceSnapshotIncludesAvatarUrl() throws Exception {
+        StompSession alice = connect("alice", "앨리스", "https://avatars.githubusercontent.com/u/1?v=4", "octocat");
+        BlockingQueue<PresenceEvent> presence = subscribe(alice, "/topic/models/c5/presence");
+        Thread.sleep(300);
+        alice.send("/app/models/c5/join", "");
+        await(presence); // 앨리스 입장 확정
+
+        StompSession bob = connect("bob", "밥", null); // 아바타 헤더 없음
+        BlockingQueue<PresenceEvent> bobPresence = subscribe(bob, "/topic/models/c5/presence");
+        Thread.sleep(300);
+        bob.send("/app/models/c5/join", "");
+
+        PresenceEvent event = await(bobPresence);
+        assertThat(event.participants()).anySatisfy(p -> {
+            assertThat(p.userId()).isEqualTo("alice");
+            assertThat(p.avatarUrl()).isEqualTo("https://avatars.githubusercontent.com/u/1?v=4");
+            assertThat(p.userLogin()).isEqualTo("octocat");
+        });
+        assertThat(event.participants()).anySatisfy(p -> {
+            assertThat(p.userId()).isEqualTo("bob");
+            assertThat(p.avatarUrl()).isNull();
+            assertThat(p.userLogin()).isNull();
+        });
+    }
+
+    @Test
+    @DisplayName("채팅 기록은 룸당 최근 50건만 유지한다 — 초과분은 앞에서부터 밀려난다")
+    void historyKeepsOnlyRecentFifty() throws Exception {
+        StompSession alice = connect("alice", "앨리스", null);
+        // 에코를 기다렸다 보낸다 — 무수면 버스트는 프레임 처리 순서가 뒤집혀 m3 창 경계가 흔들린다
+        BlockingQueue<ChatEvent> aliceChat = subscribeTyped(alice, "/topic/models/c6/chat", ChatEvent.class);
+        for (int i = 1; i <= 52; i++) {
+            alice.send("/app/models/c6/chat", new ChatNotice("m" + i));
+            await(aliceChat);
+        }
+
+        StompSession bob = connect("bob", "밥", null);
+        BlockingQueue<ChatEvent> bobChat = subscribeTyped(bob, "/topic/models/c6/chat", ChatEvent.class);
+        Thread.sleep(300);
+        bob.send("/app/models/c6/join", "");
+
+        ChatEvent history = await(bobChat);
+        assertThat(history.type()).isEqualTo("history");
+        assertThat(history.messages()).hasSize(50);
+        assertThat(history.messages().get(0).message()).isEqualTo("m3"); // m1·m2 제거
+        assertThat(history.messages().get(49).message()).isEqualTo("m52");
+    }
+
     private StompSession connect(String userId, String userName) throws Exception {
+        return connect(userId, userName, null);
+    }
+
+    private StompSession connect(String userId, String userName, String avatarUrl) throws Exception {
+        return connect(userId, userName, avatarUrl, null);
+    }
+
+    private StompSession connect(String userId, String userName, String avatarUrl, String login) throws Exception {
         StompHeaders headers = new StompHeaders();
         headers.add("X-USER-ID", userId);
         headers.add("X-USER-NAME", userName);
+        if (avatarUrl != null) {
+            headers.add("X-USER-AVATAR", avatarUrl);
+        }
+        if (login != null) {
+            headers.add("X-USER-LOGIN", login);
+        }
         StompSession session = stompClient.connectAsync("ws://localhost:" + port + "/ws/websocket",
                 new WebSocketHttpHeaders(), headers, new StompSessionHandlerAdapter() {
                 }).get(5, TimeUnit.SECONDS);

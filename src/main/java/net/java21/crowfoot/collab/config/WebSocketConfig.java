@@ -28,6 +28,8 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     static final String HEADER_USER_ID = "X-USER-ID";
     static final String HEADER_USER_NAME = "X-USER-NAME";
+    static final String HEADER_USER_AVATAR = "X-USER-AVATAR";
+    static final String HEADER_USER_LOGIN = "X-USER-LOGIN";
 
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
@@ -53,12 +55,16 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
                 if (accessor != null && StompCommand.CONNECT.equals(accessor.getCommand())) {
                     String userId = accessor.getFirstNativeHeader(HEADER_USER_ID);
                     String userName = accessor.getFirstNativeHeader(HEADER_USER_NAME);
+                    String avatarUrl = accessor.getFirstNativeHeader(HEADER_USER_AVATAR);
+                    String userLogin = accessor.getFirstNativeHeader(HEADER_USER_LOGIN);
                     if (userId == null || userId.isBlank()) {
                         // CONNECT 거부 — 에러 프레임으로 클라이언트에 전달된다
                         throw new IllegalArgumentException("X-USER-ID 헤더가 필요합니다");
                     }
                     accessor.setUser(new StompPrincipal(userId, userName == null || userName.isBlank()
-                            ? "사용자 " + userId : userName));
+                            ? "사용자 " + userId : userName,
+                            avatarUrl == null || avatarUrl.isBlank() ? null : avatarUrl,
+                            userLogin == null || userLogin.isBlank() ? null : userLogin));
                 }
                 return message;
             }
