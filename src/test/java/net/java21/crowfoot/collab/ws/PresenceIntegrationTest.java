@@ -192,6 +192,21 @@ class PresenceIntegrationTest {
     }
 
     @Test
+    @DisplayName("CONNECT accept-language가 폴백 표시명 언어를 결정한다 — ja면 ユーザー {id}")
+    void connectLanguageChoosesFallbackName() throws Exception {
+        StompSession alice = connect("alice", null, null, null, "ja");
+        BlockingQueue<PresenceEvent> presence = subscribe(alice, "/topic/models/m7/presence");
+        Thread.sleep(300);
+
+        alice.send("/app/models/m7/join", "");
+
+        PresenceEvent event = await(presence);
+        assertThat(event.name()).isEqualTo("ユーザー alice");
+        assertThat(event.participants()).first()
+                .satisfies(p -> assertThat(p.name()).isEqualTo("ユーザー alice"));
+    }
+
+    @Test
     @DisplayName("chat 발행이 룸 구독자 전체에 전파된다 — 발신자 에코 포함, 이름·아바타·핸들 실림")
     void chatMessageIsBroadcastToRoomSubscribers() throws Exception {
         StompSession alice = connect("alice", "앨리스", "https://avatars.githubusercontent.com/u/1?v=4", "octocat");
@@ -328,14 +343,24 @@ class PresenceIntegrationTest {
     }
 
     private StompSession connect(String userId, String userName, String avatarUrl, String login) throws Exception {
+        return connect(userId, userName, avatarUrl, login, null);
+    }
+
+    private StompSession connect(String userId, String userName, String avatarUrl, String login,
+                                 String acceptLanguage) throws Exception {
         StompHeaders headers = new StompHeaders();
         headers.add("X-USER-ID", userId);
-        headers.add("X-USER-NAME", userName);
+        if (userName != null) {
+            headers.add("X-USER-NAME", userName);
+        }
         if (avatarUrl != null) {
             headers.add("X-USER-AVATAR", avatarUrl);
         }
         if (login != null) {
             headers.add("X-USER-LOGIN", login);
+        }
+        if (acceptLanguage != null) {
+            headers.add("accept-language", acceptLanguage);
         }
         StompSession session = stompClient.connectAsync("ws://localhost:" + port + "/ws/websocket",
                 new WebSocketHttpHeaders(), headers, new StompSessionHandlerAdapter() {
