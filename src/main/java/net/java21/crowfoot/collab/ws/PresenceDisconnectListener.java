@@ -7,19 +7,22 @@ import org.springframework.web.socket.messaging.SessionDisconnectEvent;
 /**
  * 세션 끊김(탭 닫기·네트워크 단절·에러) → 룸 해제 + 퇴장 브로드캐스트.
  * 클라이언트가 leave를 보내지 못하고 사라지는 경우가 대부분이라
- * disconnect 정리가 presence의 실제 원천이다.
+ * disconnect 정리가 presence·락·커서 해제의 실제 원천이다.
  */
 @Component
 public class PresenceDisconnectListener {
 
     private final PresenceService presence;
+    private final SessionLifetimes lifetimes;
 
-    public PresenceDisconnectListener(PresenceService presence) {
+    public PresenceDisconnectListener(PresenceService presence, SessionLifetimes lifetimes) {
         this.presence = presence;
+        this.lifetimes = lifetimes;
     }
 
     @EventListener
     public void onDisconnect(SessionDisconnectEvent event) {
         presence.disconnect(event.getSessionId());
+        lifetimes.forget(event.getSessionId());
     }
 }

@@ -11,3 +11,17 @@ management:
     web:
       exposure:
         include: health
+
+collab:
+  auth:
+    mode: header            # header(로컬: X-USER-* 계약) | token(운영: Bearer → introspection)
+    auth-base-url: ""       # 인증 서버 내부 베이스(예: http://crowfoot-auth:8081) — token 모드 필수
+    token-cache-ttl: 45s    # introspection 캐시(게이트웨이 TokenValidationCache 선례)
+  core:
+    base-url: ""            # core 내부 API 베이스(예: http://crowfoot-core-api:8082) — token 모드 필수
+  session:
+    max-lifetime: 2h        # 세션 수명 상한 — 초과 SEND 거부 → 재접속·재인증
+  locks:
+    ttl: 2m                 # Edit Session Lock 무갱신 만료(lazy 정리)
+  cursor:
+    min-interval: 30ms      # 커서 발신 쓰로틀 — 이내 재발송 드롭

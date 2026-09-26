@@ -12,7 +12,7 @@ import java.security.Principal;
 
 /**
  * STOMP 발행 수신 — /app/models/{modelId}/join · leave · saved.
- * 신원은 CONNECT에서 승격된 Principal(헤더 위조는 로컬 계약 — 운영은 게이트웨이 주입).
+ * 신원은 CONNECT에서 AuthGate가 확정한 Principal(모드별 원천 — header·token).
  */
 @Controller
 public class PresenceController {

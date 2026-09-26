@@ -14,7 +14,8 @@ public record StompPrincipal(String userId, String displayName, String avatarUrl
         return userId;
     }
 
-    /** 룸 참가자 값 객체로 변환 — 발행 컨트롤러(presence·chat)가 같은 신원을 쓴다 */
+    /** 룸 참가자 값 객체로 변환 — 발행 컨트롤러(presence·chat)가 같은 신원을 쓴다.
+     *  role은 룸 단위 판정이라 여기서는 비워두고, join이 RoomAuthorizer 결과로 채운다. */
     public CollabRooms.Participant toParticipant() {
         return new CollabRooms.Participant(userId, displayName, avatarUrl, userLogin);
     }

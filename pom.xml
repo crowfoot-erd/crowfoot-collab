@@ -27,6 +27,8 @@
     <properties>
         <java.version>21</java.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <!-- auth·gateway와 동일 train (api-design.md Section 11) -->
+        <mockwebserver.version>4.12.0</mockwebserver.version>
     </properties>
 
     <dependencies>
@@ -46,10 +48,23 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-actuator</artifactId>
         </dependency>
+        <!-- Boot 4 — RestClient.Builder 자동구성이 별도 모듈로 분리 (v1.17 introspection·core 내부 API 호출.
+             auth pom 선례) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-restclient</artifactId>
+        </dependency>
 
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!-- auth·core 내부 API 목 — auth 선례(testing.md Section 10.1). token 모드 통합 테스트 -->
+        <dependency>
+            <groupId>com.squareup.okhttp3</groupId>
+            <artifactId>mockwebserver</artifactId>
+            <version>${mockwebserver.version}</version>
             <scope>test</scope>
         </dependency>
     </dependencies>

@@ -18,9 +18,20 @@ import java.util.concurrent.ConcurrentHashMap;
 @Component
 public class CollabRooms {
 
-    /** 참가자 — 클라이언트가 CONNECT 헤더로 실어 올린 신원(로컬 개발. 운영은 게이트웨이 주입).
-     *  avatarUrl은 선택(제공자 프로필 사진 — 없으면 null, 웹이 이니셜로 폴백). */
-    public record Participant(String userId, String name, String avatarUrl, String userLogin) {
+    /** 참가자 — 신원은 CONNECT에서 확정(모드별 원천은 AuthGate).
+     *  avatarUrl은 선택(제공자 프로필 사진 — 없으면 null, 웹이 이니셜로 폴백).
+     *  role은 룸(=Model) 단위 유효 역할(OWNER/EDITOR/COMMENTER/VIEWER·NONE) — join과
+     *  쓰기 발행 때 갱신되며 presence 스냅샷에 실려 클라이언트가 편집 UI를 스스로 잠근다. */
+    public record Participant(String userId, String name, String avatarUrl, String userLogin,
+                              String role) {
+
+        public Participant(String userId, String name, String avatarUrl, String userLogin) {
+            this(userId, name, avatarUrl, userLogin, null);
+        }
+
+        public Participant withRole(String newRole) {
+            return new Participant(userId, name, avatarUrl, userLogin, newRole);
+        }
     }
 
     private final Map<String, Map<String, Participant>> rooms = new ConcurrentHashMap<>();
@@ -29,6 +40,18 @@ public class CollabRooms {
     public synchronized boolean join(String modelId, String sessionId, Participant participant) {
         Map<String, Participant> room = rooms.computeIfAbsent(modelId, k -> new LinkedHashMap<>());
         return room.put(sessionId, participant) == null;
+    }
+
+    /** 참가자 역할 갱신 — 쓰기 발행 때의 재검증(캐시 만료 재조회) 결과를 반영한다 */
+    public synchronized void updateRole(String modelId, String sessionId, String role) {
+        Map<String, Participant> room = rooms.get(modelId);
+        if (room == null) {
+            return;
+        }
+        Participant participant = room.get(sessionId);
+        if (participant != null) {
+            room.put(sessionId, participant.withRole(role));
+        }
     }
 
     /** 세션 해제(명시적 leave·disconnect 공용) — 제거된 참가자, 없으면 null */
