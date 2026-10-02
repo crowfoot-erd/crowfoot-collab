@@ -80,6 +80,9 @@ class TokenModeIntegrationTest {
                     case "editor-token" -> active("43");
                     case "viewer-token" -> active("77");
                     case "outage-token" -> new MockResponse().setResponseCode(500); // 장애 시나리오
+                    // 워크스페이스 액세스 토큰(MCP용) — 유효하지만 협업 채널은 받지 않는다
+                    case "workspace-token" -> jsonResponse("{\"header\":{\"isSuccessful\":true},\"response\":{\"active\":true,"
+                            + "\"sub\":\"42\",\"typ\":\"WORKSPACE_TOKEN\",\"workspaceId\":\"77\",\"tokenId\":\"12\"}}");
                     default -> jsonResponse("{\"header\":{\"isSuccessful\":true},\"response\":{\"active\":false}}");
                 };
             }
@@ -176,6 +179,13 @@ class TokenModeIntegrationTest {
     @DisplayName("inactive 토큰은 연결이 거부된다 — active=false는 정상 응답이지만 실패")
     void inactiveTokenIsRejected() {
         assertThatThrownBy(() -> connect("revoked-token", null, null))
+                .isInstanceOf(ExecutionException.class);
+    }
+
+    @Test
+    @DisplayName("워크스페이스 액세스 토큰으로는 접속할 수 없다 — typ이 ACCESS가 아니면 거부")
+    void workspaceTokenIsRejected() {
+        assertThatThrownBy(() -> connect("workspace-token", null, null))
                 .isInstanceOf(ExecutionException.class);
     }
 

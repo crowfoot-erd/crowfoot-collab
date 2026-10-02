@@ -90,6 +90,12 @@ public class AuthIntrospectionClient {
         if (!active || sub == null || sub.isBlank()) {
             return Optional.empty();
         }
+        // 웹 로그인 토큰(typ ACCESS)만 받는다 — 워크스페이스 액세스 토큰(MCP용)으로는 협업 채널에 접속할 수 없다
+        // (05-editor/03-collaboration.md Section 2.1). typ이 없는 응답은 예전 인증 서버의 것이므로 ACCESS로 본다
+        String typ = response.path("typ").asText(null);
+        if (typ != null && !"ACCESS".equals(typ)) {
+            return Optional.empty();
+        }
         long expiresAt = clock.millis() + properties.auth().tokenCacheTtl().toMillis();
         Long exp = response.path("exp").isNumber() ? response.path("exp").asLong() : null;
         if (exp != null) {
