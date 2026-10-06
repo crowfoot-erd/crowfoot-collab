@@ -32,7 +32,7 @@ public final class ChangeTargets {
         return switch (type) {
             case "table/remove", "table/patch",
                     "column/add", "column/remove", "column/patch", "column/move",
-                    "primaryKey/set", "uniqueKey/set", "index/set" ->
+                    "primaryKey/set", "uniqueKey/set", "index/set", "check/set" ->
                     target(TABLE, change.path("tableId"));
             case "relationship/create" ->
                     target(TABLE, change.path("relationship").path("childTableId"));
