@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 /**
  * Edit Session Lock 저장소 (05-editor/03-collaboration.md Section 2.1) — 인메모리, 세션 수명.
@@ -33,7 +34,7 @@ public class LockRegistry {
                        String sessionId, Instant acquiredAt, Instant lastSeenAt) {
     }
 
-    private final Map<String, ConcurrentHashMap<String, Lock>> locks = new ConcurrentHashMap<>();
+    private final Map<String, ConcurrentMap<String, Lock>> locks = new ConcurrentHashMap<>();
     private final CollabProperties properties;
     private final Clock clock;
 
@@ -46,7 +47,7 @@ public class LockRegistry {
     public boolean acquire(String modelId, LockTarget target, String userId, String userName,
                            String sessionId) {
         Instant now = Instant.now(clock);
-        ConcurrentHashMap<String, Lock> room = locks.computeIfAbsent(modelId, k -> new ConcurrentHashMap<>());
+        ConcurrentMap<String, Lock> room = locks.computeIfAbsent(modelId, k -> new ConcurrentHashMap<>());
         boolean[] acquired = {false};
         room.compute(target.key(), (k, existing) -> {
             if (existing != null && !expired(existing, now)) {
@@ -65,7 +66,7 @@ public class LockRegistry {
 
     /** 본인 락만 해제한다 */
     public void release(String modelId, LockTarget target, String userId) {
-        ConcurrentHashMap<String, Lock> room = locks.get(modelId);
+        ConcurrentMap<String, Lock> room = locks.get(modelId);
         if (room == null) {
             return;
         }
@@ -75,7 +76,7 @@ public class LockRegistry {
 
     /** 커맨드 2차 방어 — 이 대상이 타인의 만료 전 락으로 잠겨 있는가 */
     public boolean lockedByOther(String modelId, LockTarget target, String userId) {
-        ConcurrentHashMap<String, Lock> room = locks.get(modelId);
+        ConcurrentMap<String, Lock> room = locks.get(modelId);
         if (room == null) {
             return false;
         }
@@ -86,7 +87,7 @@ public class LockRegistry {
 
     /** 세션 해제(disconnect 원천) — 그 세션이 보유했던 락 수를 반환한다 */
     public int releaseSession(String modelId, String sessionId) {
-        ConcurrentHashMap<String, Lock> room = locks.get(modelId);
+        ConcurrentMap<String, Lock> room = locks.get(modelId);
         if (room == null) {
             return 0;
         }
@@ -112,7 +113,7 @@ public class LockRegistry {
 
     /** 전체 락 스냅샷 — 만료분을 밀어내고 남은 확정 락만 */
     public List<Lock> snapshot(String modelId) {
-        ConcurrentHashMap<String, Lock> room = locks.get(modelId);
+        ConcurrentMap<String, Lock> room = locks.get(modelId);
         if (room == null) {
             return List.of();
         }
@@ -124,7 +125,7 @@ public class LockRegistry {
 
     /** 대상 조회(테스트·디버그) — Optional 감싼 단일 락 */
     public Optional<Lock> find(String modelId, LockTarget target) {
-        ConcurrentHashMap<String, Lock> room = locks.get(modelId);
+        ConcurrentMap<String, Lock> room = locks.get(modelId);
         return room == null ? Optional.empty() : Optional.ofNullable(room.get(target.key()));
     }
 
@@ -132,7 +133,7 @@ public class LockRegistry {
         return lock.lastSeenAt().plus(properties.locks().ttl()).isBefore(now);
     }
 
-    private void removeRoomIfEmpty(String modelId, ConcurrentHashMap<String, Lock> room) {
+    private void removeRoomIfEmpty(String modelId, ConcurrentMap<String, Lock> room) {
         if (room.isEmpty()) {
             locks.remove(modelId, room);
         }

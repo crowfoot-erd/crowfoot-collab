@@ -3,6 +3,7 @@ package net.java21.crowfoot.collab.ws;
 import org.springframework.stereotype.Component;
 
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 /**
  * 룸 단위 단조 seq 원천 — 커맨드 브로드캐스트와 saved 푸시가 같은 순번 공간을 쓴다
@@ -13,7 +14,7 @@ import java.util.concurrent.ConcurrentHashMap;
 @Component
 public class Sequences {
 
-    private final ConcurrentHashMap<String, Long> sequences = new ConcurrentHashMap<>();
+    private final ConcurrentMap<String, Long> sequences = new ConcurrentHashMap<>();
 
     public long next(String modelId) {
         return sequences.compute(modelId, (k, current) -> current == null ? 1L : current + 1);

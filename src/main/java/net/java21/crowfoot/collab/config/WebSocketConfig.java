@@ -3,7 +3,6 @@ package net.java21.crowfoot.collab.config;
 import net.java21.crowfoot.collab.auth.AuthGate;
 import net.java21.crowfoot.collab.ws.SessionLifetimes;
 import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageChannel;
@@ -21,6 +20,7 @@ import org.springframework.web.socket.config.annotation.WebSocketTransportRegist
 
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 
 /**
  * STOMP 설정 — 엔드포인트 /ws(SockJS 폴백 포함), 내장 심플 브로커.
@@ -105,9 +105,10 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
                     String lang = languageOf(accessor.getFirstNativeHeader(HEADER_LANGUAGE));
                     accessor.setHeartbeat(HEARTBEAT[0], HEARTBEAT[1]);
                     accessor.setUser(authGate.authenticate(accessor, lang));
-                    lifetimes.record(accessor.getSessionId(), lang);
+                    lifetimes.record(Objects.requireNonNull(accessor.getSessionId(), "STOMP 세션 ID 없음"), lang);
                 } else if (StompCommand.SEND.equals(accessor.getCommand())) {
-                    String expired = lifetimes.expiryMessageIfExpired(accessor.getSessionId());
+                    String expired = lifetimes.expiryMessageIfExpired(
+                            Objects.requireNonNull(accessor.getSessionId(), "STOMP 세션 ID 없음"));
                     if (expired != null) {
                         // 만료 세션의 발행 거부 — ERROR 프레임, 클라이언트 재접속이 새 인증을 통과한다
                         throw new IllegalArgumentException(expired);

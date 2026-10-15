@@ -10,6 +10,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 /**
  * 참가자 커서 상태 — 일시적 채널(§1 분리 원칙): 문서(present)를 건드리지 않는다.
@@ -27,7 +28,7 @@ public class CursorService {
     private final SimpMessagingTemplate messaging;
     private final CollabProperties properties;
     private final Clock clock;
-    private final ConcurrentHashMap<String, ConcurrentHashMap<String, Entry>> cursors =
+    private final ConcurrentMap<String, ConcurrentMap<String, Entry>> cursors =
             new ConcurrentHashMap<>();
 
     public CursorService(SimpMessagingTemplate messaging, CollabProperties properties, Clock clock) {
@@ -41,7 +42,7 @@ public class CursorService {
         if (cursor == null || !cursor.isObject() || !cursor.has("x") || !cursor.has("y")) {
             return; // 좌표 없는 통보 — 조용히 무시
         }
-        ConcurrentHashMap<String, Entry> room = cursors.computeIfAbsent(modelId, k -> new ConcurrentHashMap<>());
+        ConcurrentMap<String, Entry> room = cursors.computeIfAbsent(modelId, k -> new ConcurrentHashMap<>());
         long now = clock.millis();
         Entry existing = room.get(sessionId);
         if (existing != null && now - existing.lastBroadcastMillis() < properties.cursor().minInterval().toMillis()) {
@@ -55,7 +56,7 @@ public class CursorService {
 
     /** join 시점 전체 스냅샷 — 커서가 있는 참가자가 있을 때만(멱등 교체) */
     public void broadcastSnapshot(String modelId) {
-        ConcurrentHashMap<String, Entry> room = cursors.get(modelId);
+        ConcurrentMap<String, Entry> room = cursors.get(modelId);
         if (room == null || room.isEmpty()) {
             return;
         }
@@ -67,7 +68,7 @@ public class CursorService {
 
     /** 세션 해제 — 커서는 조용히 사라진다(presence leave가 퇴장을 알린다) */
     public void removeSession(String modelId, String sessionId) {
-        ConcurrentHashMap<String, Entry> room = cursors.get(modelId);
+        ConcurrentMap<String, Entry> room = cursors.get(modelId);
         if (room == null) {
             return;
         }

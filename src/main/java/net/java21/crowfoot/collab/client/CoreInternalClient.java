@@ -15,6 +15,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 /**
  * core 내부 API 소비 클라이언트 (05-editor/03-collaboration.md Section 2.1) —
@@ -44,7 +45,7 @@ public class CoreInternalClient {
     private final RestClient restClient;
     private final ObjectMapper objectMapper;
     private final Clock clock;
-    private final ConcurrentHashMap<String, CacheEntry> cache = new ConcurrentHashMap<>();
+    private final ConcurrentMap<String, CacheEntry> cache = new ConcurrentHashMap<>();
 
     public CoreInternalClient(RestClient.Builder builder,
                               ObjectMapper objectMapper,

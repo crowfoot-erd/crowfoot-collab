@@ -9,6 +9,7 @@ import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
 import org.springframework.stereotype.Controller;
 
 import java.security.Principal;
+import java.util.Objects;
 
 /**
  * STOMP 발행 수신 — /app/models/{modelId}/join · leave · saved.
@@ -25,12 +26,12 @@ public class PresenceController {
 
     @MessageMapping("/models/{modelId}/join")
     public void join(@DestinationVariable String modelId, SimpMessageHeaderAccessor accessor) {
-        presence.join(modelId, accessor.getSessionId(), participant(accessor));
+        presence.join(modelId, sessionId(accessor), participant(accessor));
     }
 
     @MessageMapping("/models/{modelId}/leave")
     public void leave(@DestinationVariable String modelId, SimpMessageHeaderAccessor accessor) {
-        presence.leave(modelId, accessor.getSessionId());
+        presence.leave(modelId, sessionId(accessor));
     }
 
     @MessageMapping("/models/{modelId}/saved")
@@ -40,12 +41,18 @@ public class PresenceController {
         presence.saved(modelId, notice.version(), participant(accessor));
     }
 
+    /** 인바운드 STOMP 메시지에는 Spring이 세션 ID를 언제나 싣는다 */
+    private static String sessionId(SimpMessageHeaderAccessor accessor) {
+        return Objects.requireNonNull(accessor.getSessionId(), "STOMP 세션 ID 없음");
+    }
+
     private CollabRooms.Participant participant(SimpMessageHeaderAccessor accessor) {
         Principal user = accessor.getUser();
         if (user instanceof StompPrincipal principal) {
             return principal.toParticipant();
         }
         // 인터셉터가 CONNECT를 거부하므로 여기에 도달할 수 없다 — 방어적 폴백
+        Objects.requireNonNull(user, "인증되지 않은 STOMP 세션");
         return new CollabRooms.Participant(user.getName(), user.getName(), null, null);
     }
 }

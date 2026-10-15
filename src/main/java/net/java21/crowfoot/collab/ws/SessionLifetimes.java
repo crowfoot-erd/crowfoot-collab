@@ -7,6 +7,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 /**
  * 세션 수명 상한(기본 2h) — CONNECT 시각을 기록하고 SEND 때 만료를 검사한다.
@@ -27,7 +28,7 @@ public class SessionLifetimes {
     public record Session(Instant connectedAt, String lang) {
     }
 
-    private final ConcurrentHashMap<String, Session> sessions = new ConcurrentHashMap<>();
+    private final ConcurrentMap<String, Session> sessions = new ConcurrentHashMap<>();
     private final CollabProperties properties;
     private final Clock clock;
 

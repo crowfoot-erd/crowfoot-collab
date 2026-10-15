@@ -20,6 +20,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 /**
  * 인증 서버 Introspection 소비 클라이언트 (02-auth/requirements.md Section 1.6·1.7) —
@@ -41,7 +42,7 @@ public class AuthIntrospectionClient {
     private final ObjectMapper objectMapper;
     private final Clock clock;
     private final CollabProperties properties;
-    private final ConcurrentHashMap<String, CachedSubject> cache = new ConcurrentHashMap<>();
+    private final ConcurrentMap<String, CachedSubject> cache = new ConcurrentHashMap<>();
 
     public AuthIntrospectionClient(RestClient.Builder builder,
                                    ObjectMapper objectMapper,

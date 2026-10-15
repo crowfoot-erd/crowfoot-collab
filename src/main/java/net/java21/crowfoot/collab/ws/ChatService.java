@@ -9,6 +9,7 @@ import java.time.Instant;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.LinkedHashMap;
+import java.util.SequencedMap;
 import java.util.List;
 
 /**
@@ -26,7 +27,7 @@ public class ChatService {
     static final int ROOMS_LIMIT = 100;  // 기억하는 문서 룸 상한
 
     private final SimpMessagingTemplate messaging;
-    private final LinkedHashMap<String, Deque<ChatMessageEntry>> history = new LinkedHashMap<>();
+    private final SequencedMap<String, Deque<ChatMessageEntry>> history = new LinkedHashMap<>();
     private long seq; // 단조 순번 — synchronized 블록에서만 부여·증가
 
     public ChatService(SimpMessagingTemplate messaging) {
